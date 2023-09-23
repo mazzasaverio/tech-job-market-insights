@@ -1,0 +1,388 @@
+.
+├── backend
+│   ├── api
+│   │   ├── data
+│   │   │   └── sample_data.json
+│   │   ├── db
+│   │   │   └── database.py
+│   │   ├── main.py
+│   │   ├── models
+│   │   │   └── question.py
+│   │   └── routers
+│   │       └── questions.py
+│   ├── .env
+│   └── requirements.txt
+├── custom_tree_and_files_corrected.txt
+├── database
+├── deployment
+├── frontend
+│   ├── .env
+│   ├── .gitignore
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── README.md
+│   └── src
+│       ├── App.css
+│       ├── App.js
+│       ├── App.test.js
+│       ├── components
+│       │   ├── HomePage.js
+│       │   └── QuestionList.js
+│       ├── index.css
+│       ├── index.js
+│       ├── logo.svg
+│       ├── reportWebVitals.js
+│       └── setupTests.js
+├── .gitignore
+├── LICENSE
+├── README.md
+└── scripts
+    ├── populate_db.py
+    └── print_tree_and_files_script.py
+
+13 directories, 28 files
+
+
+=== Content of README.md ===
+
+# TechJobMarketInsights
+
+## Overview
+This web application aims to track the tech job market by providing various features:
+
+### Sections
+1. **InterviewPrepHub**: A Q&A section to help users prepare for tech and data job interviews. Users can filter questions based on tags, types, and categories.
+2. **TechInsights**: A blog section where articles related to the tech industry can be posted and read.
+3. **JobMarketTrends**: A statistics section that displays information scraped from job descriptions.
+
+## Deployment
+The application can be deployed using Docker containers. Specific instructions will be added soon.
+
+### Environment Variables
+Before deploying or running the application, make sure to set the following environment variables:
+
+- `MONGO_URL`: The URL for connecting to your MongoDB instance.
+- `DB_NAME`: The name of the MongoDB database. Default is `tech-job-market-insights`.
+- `COLLECTION_NAME`: The name of the MongoDB collection. Default is `interview-prep-questions`.
+
+
+=== Content of backend/api/main.py ===
+
+from fastapi import FastAPI, HTTPException
+from api.routers import questions
+import json
+import os
+from api.db.database import db
+
+app = FastAPI()
+
+app.include_router(questions.router)
+
+
+
+@app.get("/")
+async def read_root():
+    """
+    A simple home page for the API.
+    
+    Returns:
+        dict: Welcome message and API information.
+    """
+    return {"message": "Welcome to TechJobMarketInsights API", "info": "Navigate to /docs for API documentation"}
+
+
+
+@app.get("/load-sample-data")
+async def load_sample_data():
+    try:
+        # Get the path to the JSON file
+        json_path = os.path.join(os.path.dirname(__file__), "data", "sample_data.json")
+        
+        with open(json_path, "r") as file:
+            sample_data = json.load(file)
+        
+        collection_name = os.getenv("COLLECTION_NAME", "InterviewPrepHub")
+        collection = db[collection_name]
+        
+        insert_result = collection.insert_many(sample_data)
+        
+        return {"message": f"Inserted {len(insert_result.inserted_ids)} documents"}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+=== Content of backend/api/db/database.py ===
+
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Retrieve the MongoDB URL and other configs from environment variables
+MONGO_URL = os.getenv("MONGO_URL")
+DB_NAME = os.getenv("DB_NAME", "tech-job-market-insights")
+
+if MONGO_URL is None:
+    raise EnvironmentError("MONGO_URL is not set in the environment variables")
+
+# Create a MongoDB client and connect to the database
+client = MongoClient(MONGO_URL)
+
+# Explicitly specify the database name
+db = client[DB_NAME]
+
+
+=== Content of backend/api/models/question.py ===
+
+from pydantic import BaseModel
+from typing import List
+
+class Question(BaseModel):
+    questionID: str
+    questionText: str
+    difficultyLevel: str
+    category: str
+    subCategory: str
+    tags: List[str]
+    shortAnswer: str
+    detailedAnswer: str
+
+
+=== Content of backend/api/routers/questions.py ===
+
+from fastapi import APIRouter, HTTPException, Path, Query
+from api.models.question import Question
+from api.db.database import db
+from typing import List, Optional
+import os
+
+router = APIRouter()
+
+collection_name = os.getenv("COLLECTION_NAME", "InterviewPrepHub")
+collection = db[collection_name]
+
+@router.get("/question-distinct-fields")
+def get_distinct_fields():
+    """
+    Retrieve distinct categories, sub-categories, and difficulty levels.
+
+    Returns:
+        dict: A dictionary containing arrays of distinct categories, sub-categories, and difficulty levels.
+    """
+    distinct_fields = {
+        "categories": list(db[collection_name].distinct("category")),
+        "subCategories": list(db[collection_name].distinct("subCategory")),
+        "difficultyLevels": list(db[collection_name].distinct("difficultyLevel"))
+    }
+    return distinct_fields
+
+
+@router.get("/questions/{questionID}", response_model=Question)
+def get_question_by_id(questionID: str = Path(..., title="The ID of the question to get")):
+    """
+    Retrieve a specific question by its ID.
+    
+    Args:
+        questionID (str): The ID of the question to retrieve.
+        
+    Returns:
+        dict: The question data.
+    """
+    question = collection.find_one({"_id": questionID})
+    if question is None:
+        raise HTTPException(status_code=404, detail="Question not found")
+    return question
+
+@router.post("/questions", response_model=Question)
+def add_question(question: Question):
+    """
+    Add a new question to the database.
+    
+    Args:
+        question (Question): The question data to add.
+        
+    Returns:
+        dict: The added question data.
+    """
+    insert_result = collection.insert_one(question.model_dump())
+    question.id = insert_result.inserted_id
+    return question.model_dump()
+
+
+@router.get("/questions", response_model=List[Question])
+def get_questions(skip: int = Query(0, alias="start"), 
+                  limit: int = Query(10, alias="count"),
+                  category: Optional[str] = None,
+                  subCategory: Optional[str] = None,
+                  difficultyLevel: Optional[str] = None):
+    """
+    Retrieve a list of questions from the database with optional filters.
+    
+    Args:
+        skip (int): The number of records to skip.
+        limit (int): The maximum number of records to return.
+        category (str, optional): Filter by category.
+        subCategory (str, optional): Filter by subcategory.
+        difficultyLevel (str, optional): Filter by difficulty level.
+    
+    Returns:
+        list: A list of questions.
+    """
+    filters = {}
+    if category:
+        filters["category"] = category
+    if subCategory:
+        filters["subCategory"] = subCategory
+    if difficultyLevel:
+        filters["difficultyLevel"] = difficultyLevel
+
+    questions_cursor = collection.find(filters).skip(skip).limit(limit)
+    questions = list(questions_cursor)
+    return questions
+
+
+
+
+
+
+=== Content of frontend/src/index.js ===
+
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import './index.css';
+import App from './App';
+import reportWebVitals from './reportWebVitals';
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+
+// If you want to start measuring performance in your app, pass a function
+// to log results (for example: reportWebVitals(console.log))
+// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
+reportWebVitals();
+
+
+=== Content of frontend/src/App.js ===
+
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import HomePage from './components/HomePage';
+import QuestionList from './components/QuestionList';
+
+function App() {
+  return (
+    <Router>
+      <div>
+        <nav>
+          <ul>
+            <li><Link to="/">Home</Link></li>
+            <li><Link to="/questions">Interview Prep Questions</Link></li>
+          </ul>
+        </nav>
+
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/questions" element={<QuestionList />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+export default App;
+
+
+=== Content of frontend/src/components/QuestionList.js ===
+
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const QuestionList = () => {
+  const [questions, setQuestions] = useState([]);
+  const [filter, setFilter] = useState({});
+  const [distinctFields, setDistinctFields] = useState({});
+  const [revealSolution, setRevealSolution] = useState({});
+
+  useEffect(() => {
+    // Fetch distinct fields for the dropdowns
+    axios.get(`${process.env.REACT_APP_BACKEND_URL}/question-distinct-fields`)
+      .then(response => {
+        setDistinctFields(response.data);
+      })
+      .catch(error => {
+        console.log('Error fetching distinct fields:', error);
+      });
+
+    // Fetch questions based on filters
+    axios.get(`${process.env.REACT_APP_BACKEND_URL}/questions`, { params: filter })
+      .then(response => {
+        setQuestions(response.data);
+      })
+      .catch(error => {
+        console.log('Error fetching questions:', error);
+      });
+  }, [filter]);
+
+  const handleRevealSolution = (id) => {
+    setRevealSolution({ ...revealSolution, [id]: !revealSolution[id] });
+  };
+
+  return (
+    <div>
+      <h1>Interview Prep Questions</h1>
+      <div>
+        <label>
+          Category:
+          <select onChange={(e) => setFilter({ ...filter, category: e.target.value })}>
+            {distinctFields.categories?.map((cat, i) => <option key={i} value={cat}>{cat}</option>)}
+          </select>
+        </label>
+        <label>
+          Sub-Category:
+          <select onChange={(e) => setFilter({ ...filter, subCategory: e.target.value })}>
+            {distinctFields.subCategories?.map((subCat, i) => <option key={i} value={subCat}>{subCat}</option>)}
+          </select>
+        </label>
+        <label>
+          Difficulty Level:
+          <select onChange={(e) => setFilter({ ...filter, difficultyLevel: e.target.value })}>
+            {distinctFields.difficultyLevels?.map((diff, i) => <option key={i} value={diff}>{diff}</option>)}
+          </select>
+        </label>
+      </div>
+      <ul>
+        {questions.map((question, index) => (
+          <li key={index}>
+            {question.questionText}
+            <button onClick={() => handleRevealSolution(question.questionID)}>Reveal Solution</button>
+            {revealSolution[question.questionID] && <div>{question.detailedAnswer}</div>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default QuestionList;
+
+
+=== Content of frontend/src/components/HomePage.js ===
+
+import React from 'react';
+
+const HomePage = () => {
+  return (
+    <div>
+      <h1>Welcome to TechJobMarketInsights</h1>
+    </div>
+  );
+};
+
+export default HomePage;

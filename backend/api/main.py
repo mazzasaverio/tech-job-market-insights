@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from api.routers import questions
 import json
 import os
@@ -6,7 +7,30 @@ from api.db.database import db
 
 app = FastAPI()
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # you can restrict the origins for better security
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(questions.router)
+
+
+
+@app.get("/")
+async def read_root():
+    """
+    A simple home page for the API.
+    
+    Returns:
+        dict: Welcome message and API information.
+    """
+    return {"message": "Welcome to TechJobMarketInsights API", "info": "Navigate to /docs for API documentation"}
+
+
 
 @app.get("/load-sample-data")
 async def load_sample_data():

@@ -11,6 +11,9 @@ This web application aims to track the tech job market by providing various feat
 ## Deployment
 The application can be deployed using Docker containers. Specific instructions will be added soon.
 
-## Future Enhancements
-- User authentication and authorization
-- Commenting feature for the blog section
+### Environment Variables
+Before deploying or running the application, make sure to set the following environment variables:
+
+- `MONGO_URL`: The URL for connecting to your MongoDB instance.
+- `DB_NAME`: The name of the MongoDB database. Default is `tech-job-market-insights`.
+- `COLLECTION_NAME`: The name of the MongoDB collection. Default is `interview-prep-questions`.
