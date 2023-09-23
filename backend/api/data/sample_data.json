@@ -1,0 +1,32 @@
+[
+    {
+        "questionID": "1",
+        "questionText": "What is Big O notation?",
+        "difficultyLevel": "Junior",
+        "category": "Software Engineering",
+        "subCategory": "Algorithms",
+        "tags": ["Big O", "Complexity"],
+        "shortAnswer": "Big O notation describes the performance of an algorithm.",
+        "detailedAnswer": "Big O notation provides an upper bound on the time complexity of an algorithm in the worst-case scenario."
+    },
+    {
+        "questionID": "2",
+        "questionText": "What is a RESTful API?",
+        "difficultyLevel": "Mid",
+        "category": "Software Engineering",
+        "subCategory": "Web Development",
+        "tags": ["API", "REST"],
+        "shortAnswer": "RESTful API is an architectural style for web services.",
+        "detailedAnswer": "REST stands for Representational State Transfer. It's an architectural style for designing networked applications."
+    },
+    {
+        "questionID": "3",
+        "questionText": "What are Docker containers?",
+        "difficultyLevel": "Mid",
+        "category": "DevOps",
+        "subCategory": "Containerization",
+        "tags": ["Docker", "Container"],
+        "shortAnswer": "Docker containers are lightweight, stand-alone packages that contain everything needed to run a piece of software.",
+        "detailedAnswer": "Docker containers are encapsulated, loosely isolated environments that run a single application."
+    }
+]
