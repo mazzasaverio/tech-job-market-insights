@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Path, Query
-from api.models.question import Question
-from api.db.database import db
+from models.question import Question
+from db.database import db
 from typing import List, Optional
 import os
 

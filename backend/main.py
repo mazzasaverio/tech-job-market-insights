@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from api.routers import questions
+from routers import questions
 import json
 import os
-from api.db.database import db
+from db.database import db
 
 app = FastAPI()
 

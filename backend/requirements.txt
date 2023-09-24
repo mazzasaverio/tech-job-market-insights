@@ -1,5 +1,5 @@
-fastapi
-uvicorn
-pydantic
-pymongo
-python-dotenv
+fastapi==0.103.1
+pip-chill==1.0.3
+pymongo==4.5.0
+python-dotenv==1.0.0
+uvicorn==0.23.2
